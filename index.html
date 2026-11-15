@@ -1,0 +1,399 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Unas flores unicas como tú</title>
+    <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600&family=Playfair+Display:ital,wght@0,500;1,400&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background: radial-gradient(circle at center, #140f0a 0%, #050302 100%);
+            overflow: hidden;
+            height: 100vh;
+            width: 100vw;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: flex-end;
+            font-family: 'Playfair Display', serif;
+            color: #f7d99c;
+        }
+
+        canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 1;
+        }
+
+        .mensaje-contenedor {
+            position: absolute;
+            top: 7%;
+            z-index: 2;
+            text-align: center;
+            padding: 0 20px;
+            pointer-events: none;
+            animation: aparecerTexto 3.5s ease-out forwards;
+            opacity: 0;
+        }
+
+        .titulo {
+            font-family: 'Cinzel', serif;
+            font-size: clamp(1.5rem, 4vw, 2.5rem);
+            letter-spacing: 3px;
+            color: #f5c76b;
+            text-shadow: 0 0 20px rgba(245, 199, 107, 0.5);
+            margin-bottom: 8px;
+        }
+
+        .subtitulo {
+            font-size: clamp(1rem, 2.5vw, 1.3rem);
+            font-style: italic;
+            color: #e8cfa0;
+            opacity: 0.9;
+        }
+
+        @keyframes aparecerTexto {
+            0% { opacity: 0; transform: translateY(-15px); }
+            40% { opacity: 0; }
+            100% { opacity: 1; transform: translateY(0); }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="mensaje-contenedor">
+        <!-- Puedes cambiar el texto aquí abajo -->
+        <h1 class="titulo">PARA TI</h1>
+        <p class="subtitulo">Un ramo tan salvaje y único como tú 🐆✨</p>
+    </div>
+
+    <canvas id="lienzo"></canvas>
+
+    <script>
+        const canvas = document.getElementById('lienzo');
+        const ctx = canvas.getContext('2d');
+
+        let width, height;
+        let progreso = 0;
+        let particulas = [];
+
+        function ajustarTamano() {
+            width = canvas.width = window.innerWidth;
+            height = canvas.height = window.innerHeight;
+        }
+        window.addEventListener('resize', ajustarTamano);
+        ajustarTamano();
+
+        // 1. GENERADOR DE TEXTURA REALISTA DE LEOPARDO (ROSETAS)
+        function crearPatronLeopardo() {
+            const pCanvas = document.createElement('canvas');
+            pCanvas.width = 180;
+            pCanvas.height = 180;
+            const pCtx = pCanvas.getContext('2d');
+
+            // Base de pelaje dorado cálido
+            const grad = pCtx.createLinearGradient(0, 0, 180, 180);
+            grad.addColorStop(0, '#e3a842');
+            grad.addColorStop(0.5, '#c98626');
+            grad.addColorStop(1, '#e8b354');
+            pCtx.fillStyle = grad;
+            pCtx.fillRect(0, 0, 180, 180);
+
+            // Sutil textura de pelo
+            for (let i = 0; i < 600; i++) {
+                pCtx.fillStyle = Math.random() > 0.5 ? 'rgba(255,230,170,0.08)' : 'rgba(60,30,5,0.08)';
+                pCtx.fillRect(Math.random() * 180, Math.random() * 180, 2, 1);
+            }
+
+            // Función para dibujar una roseta típica de leopardo (anillo roto oscuro con centro ámbar)
+            function dibujarRoseta(cx, cy, radio) {
+                // Centro marrón tostado
+                pCtx.beginPath();
+                pCtx.arc(cx, cy, radio * 0.65, 0, Math.PI * 2);
+                pCtx.fillStyle = '#9c5216';
+                pCtx.fill();
+
+                // Manchas negras irregulares alrededor formando la roseta (3 a 4 fragmentos)
+                const fragmentos = 3 + Math.floor(Math.random() * 2);
+                const anguloInicial = Math.random() * Math.PI * 2;
+
+                pCtx.fillStyle = '#170d05';
+                for (let i = 0; i < fragmentos; i++) {
+                    const ang = anguloInicial + (i * (Math.PI * 2 / fragmentos)) + (Math.random() * 0.3);
+                    const arco = (Math.PI * 1.1) / fragmentos;
+
+                    pCtx.beginPath();
+                    pCtx.arc(cx, cy, radio, ang, ang + arco);
+                    pCtx.arc(cx, cy, radio * 0.52, ang + arco, ang, true);
+                    pCtx.closePath();
+                    pCtx.fill();
+                }
+            }
+
+            // Coordenadas fijas bien distribuidas para que siempre luzcan las rosetas
+            const posiciones = [
+                {x: 30, y: 30, r: 16}, {x: 95, y: 25, r: 18}, {x: 155, y: 40, r: 15},
+                {x: 55, y: 80, r: 19}, {x: 125, y: 85, r: 17}, {x: 20, y: 130, r: 16},
+                {x: 85, y: 140, r: 20}, {x: 150, y: 135, r: 17}, {x: 175, y: 90, r: 14}
+            ];
+
+            posiciones.forEach(p => {
+                dibujarRoseta(p.x, p.y, p.r);
+                // Repetir en los bordes para que el patrón encaje sin cortes
+                if (p.x < 30) dibujarRoseta(p.x + 180, p.y, p.r);
+                if (p.x > 150) dibujarRoseta(p.x - 180, p.y, p.r);
+                if (p.y < 30) dibujarRoseta(p.x, p.y + 180, p.r);
+                if (p.y > 150) dibujarRoseta(p.x, p.y - 180, p.r);
+            });
+
+            // Pequeñas motas negras sueltas entre rosetas
+            const motas = [{x: 65, y: 40}, {x: 130, y: 55}, {x: 35, y: 100}, {x: 115, y: 115}, {x: 55, y: 165}];
+            pCtx.fillStyle = '#170d05';
+            motas.forEach(m => {
+                pCtx.beginPath();
+                pCtx.ellipse(m.x, m.y, 4, 3, Math.random(), 0, Math.PI * 2);
+                pCtx.fill();
+            });
+
+            return ctx.createPattern(pCanvas, 'repeat');
+        }
+
+        const patronLeopardo = crearPatronLeopardo();
+
+        // 2. CONFIGURACIÓN DEL RAMO DE FLORES
+        function obtenerFlores() {
+            const baseX = width / 2;
+            const baseY = height * 0.96;
+            const escala = Math.min(width, height) / 750;
+
+            return [
+                // Flor central alta
+                { x: baseX, y: height * 0.34, ctrlX: baseX - 15, ctrlY: height * 0.65, radio: 68 * escala, retraso: 0.0, rot: 0.1 },
+                // Flores medias izquierda y derecha
+                { x: baseX - 115 * escala, y: height * 0.42, ctrlX: baseX - 90 * escala, ctrlY: height * 0.70, radio: 62 * escala, retraso: 0.12, rot: -0.3 },
+                { x: baseX + 115 * escala, y: height * 0.42, ctrlX: baseX + 90 * escala, ctrlY: height * 0.70, radio: 62 * escala, retraso: 0.15, rot: 0.4 },
+                // Flores exteriores bajas
+                { x: baseX - 185 * escala, y: height * 0.54, ctrlX: baseX - 130 * escala, ctrlY: height * 0.78, radio: 55 * escala, retraso: 0.25, rot: -0.5 },
+                { x: baseX + 185 * escala, y: height * 0.54, ctrlX: baseX + 130 * escala, ctrlY: height * 0.78, radio: 55 * escala, retraso: 0.28, rot: 0.5 },
+                // Flores delanteras centrales
+                { x: baseX - 55 * escala, y: height * 0.52, ctrlX: baseX - 30 * escala, ctrlY: height * 0.75, radio: 60 * escala, retraso: 0.32, rot: 0.2 },
+                { x: baseX + 60 * escala, y: height * 0.53, ctrlX: baseX + 35 * escala, ctrlY: height * 0.75, radio: 58 * escala, retraso: 0.35, rot: -0.2 }
+            ].map(f => ({ ...f, baseX, baseY }));
+        }
+
+        // 3. LUCIÉRNAGAS / DESTELLOS DORADOS
+        for (let i = 0; i < 45; i++) {
+            particulas.push({
+                x: Math.random() * width,
+                y: Math.random() * height,
+                r: Math.random() * 2.5 + 0.8,
+                vx: (Math.random() - 0.5) * 0.6,
+                vy: -Math.random() * 0.8 - 0.2,
+                alfa: Math.random()
+            });
+        }
+
+        function dibujarHoja(x, y, angulo, tamano) {
+            ctx.save();
+            ctx.translate(x, y);
+            ctx.rotate(angulo);
+            ctx.beginPath();
+            ctx.moveTo(0, 0);
+            ctx.quadraticCurveTo(tamano * 0.5, -tamano * 0.4, tamano, 0);
+            ctx.quadraticCurveTo(tamano * 0.5, tamano * 0.4, 0, 0);
+            
+            const gradHoja = ctx.createLinearGradient(0, 0, tamano, 0);
+            gradHoja.addColorStop(0, '#13331c');
+            gradHoja.addColorStop(1, '#276336');
+            ctx.fillStyle = gradHoja;
+            ctx.fill();
+            ctx.restore();
+        }
+
+        function dibujarFlorLeopardo(flor, apertura, tiempo) {
+            if (apertura <= 0) return;
+
+            ctx.save();
+            const balanceo = Math.sin(tiempo * 0.002 + flor.x) * 3 * apertura;
+            ctx.translate(flor.x + balanceo, flor.y);
+            ctx.scale(apertura, apertura);
+            ctx.rotate(flor.rot + Math.sin(tiempo * 0.0015) * 0.04);
+
+            const numPetalos = 7;
+
+            // Capa trasera de pétalos (más anchos y con estampado leopardo)
+            for (let i = 0; i < numPetalos; i++) {
+                ctx.save();
+                ctx.rotate((Math.PI * 2 / numPetalos) * i);
+
+                ctx.beginPath();
+                ctx.moveTo(0, 0);
+                ctx.bezierCurveTo(
+                    -flor.radio * 0.55, -flor.radio * 0.4,
+                    -flor.radio * 0.65, -flor.radio * 1.15,
+                    0, -flor.radio * 1.25
+                );
+                ctx.bezierCurveTo(
+                    flor.radio * 0.65, -flor.radio * 1.15,
+                    flor.radio * 0.55, -flor.radio * 0.4,
+                    0, 0
+                );
+
+                ctx.fillStyle = patronLeopardo;
+                ctx.fill();
+
+                // Sombra en la base del pétalo para dar volumen 3D
+                const sombra = ctx.createRadialGradient(0, 0, 2, 0, 0, flor.radio * 0.85);
+                sombra.addColorStop(0, 'rgba(20, 10, 2, 0.85)');
+                sombra.addColorStop(0.5, 'rgba(40, 20, 5, 0.25)');
+                sombra.addColorStop(1, 'rgba(0, 0, 0, 0)');
+                ctx.fillStyle = sombra;
+                ctx.fill();
+
+                // Borde sutil dorado en cada pétalo para definirlo bien
+                ctx.strokeStyle = 'rgba(255, 205, 105, 0.45)';
+                ctx.lineWidth = 1.5;
+                ctx.stroke();
+
+                ctx.restore();
+            }
+
+            // Capa delantera de pétalos intercalados
+            for (let i = 0; i < numPetalos; i++) {
+                ctx.save();
+                ctx.rotate((Math.PI * 2 / numPetalos) * i + (Math.PI / numPetalos));
+                ctx.scale(0.78, 0.78);
+
+                ctx.beginPath();
+                ctx.moveTo(0, 0);
+                ctx.bezierCurveTo(
+                    -flor.radio * 0.5, -flor.radio * 0.4,
+                    -flor.radio * 0.6, -flor.radio * 1.1,
+                    0, -flor.radio * 1.2
+                );
+                ctx.bezierCurveTo(
+                    flor.radio * 0.6, -flor.radio * 1.1,
+                    flor.radio * 0.5, -flor.radio * 0.4,
+                    0, 0
+                );
+
+                ctx.fillStyle = patronLeopardo;
+                ctx.fill();
+
+                const sombraInt = ctx.createRadialGradient(0, 0, 2, 0, 0, flor.radio * 0.7);
+                sombraInt.addColorStop(0, 'rgba(15, 7, 2, 0.9)');
+                sombraInt.addColorStop(1, 'rgba(0, 0, 0, 0)');
+                ctx.fillStyle = sombraInt;
+                ctx.fill();
+
+                ctx.strokeStyle = 'rgba(255, 215, 130, 0.35)';
+                ctx.lineWidth = 1.2;
+                ctx.stroke();
+
+                ctx.restore();
+            }
+
+            // Centro oscuro aterciopelado con polen dorado
+            ctx.beginPath();
+            ctx.arc(0, 0, flor.radio * 0.22, 0, Math.PI * 2);
+            ctx.fillStyle = '#170c04';
+            ctx.fill();
+
+            for (let p = 0; p < 16; p++) {
+                const ang = (Math.PI * 2 / 16) * p;
+                const dist = flor.radio * 0.16;
+                ctx.beginPath();
+                ctx.arc(Math.cos(ang) * dist, Math.sin(ang) * dist, 1.8, 0, Math.PI * 2);
+                ctx.fillStyle = '#ffcf5c';
+                ctx.fill();
+            }
+
+            ctx.restore();
+        }
+
+        // 4. BUCLE PRINCIPAL DE ANIMACIÓN
+        function animar(tiempo) {
+            ctx.clearRect(0, 0, width, height);
+
+            if (progreso < 1) {
+                progreso += 0.006;
+            }
+
+            // Dibujar partículas flotantes
+            particulas.forEach(p => {
+                p.x += p.vx;
+                p.y += p.vy;
+                if (p.y < 0) p.y = height;
+                if (p.x < 0) p.x = width;
+                if (p.x > width) p.x = 0;
+
+                const brillo = 0.4 + Math.sin(tiempo * 0.004 + p.x) * 0.4;
+                ctx.beginPath();
+                ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+                ctx.fillStyle = `rgba(255, 210, 110, ${brillo})`;
+                ctx.fill();
+            });
+
+            const flores = obtenerFlores();
+
+            // Dibujar tallos y hojas
+            flores.forEach(flor => {
+                const progTallo = Math.min(1, Math.max(0, (progreso - flor.retraso) * 2.2));
+                if (progTallo <= 0) return;
+
+                const balanceo = Math.sin(tiempo * 0.002 + flor.x) * 3 * progTallo;
+                const finX = flor.x + balanceo;
+                const finY = flor.y;
+
+                // Punto actual en la curva cuadrática
+                const t = progTallo;
+                const curX = (1 - t) * (1 - t) * flor.baseX + 2 * (1 - t) * t * flor.ctrlX + t * t * finX;
+                const curY = (1 - t) * (1 - t) * flor.baseY + 2 * (1 - t) * t * flor.ctrlY + t * t * finY;
+
+                ctx.beginPath();
+                ctx.moveTo(flor.baseX, flor.baseY);
+                ctx.quadraticCurveTo(
+                    flor.baseX + (flor.ctrlX - flor.baseX) * t,
+                    flor.baseY + (flor.ctrlY - flor.baseY) * t,
+                    curX,
+                    curY
+                );
+                ctx.strokeStyle = '#1f4d2b';
+                ctx.lineWidth = 4.5;
+                ctx.lineCap = 'round';
+                ctx.stroke();
+
+                // Dibujar hojas a mitad del tallo
+                if (progTallo > 0.55) {
+                    const hojaScale = Math.min(1, (progTallo - 0.55) * 2.5);
+                    const hx = 0.25 * flor.baseX + 0.5 * flor.ctrlX + 0.25 * finX;
+                    const hy = 0.25 * flor.baseY + 0.5 * flor.ctrlY + 0.25 * finY;
+                    dibujarHoja(hx, hy, -0.5, 42 * hojaScale);
+                    dibujarHoja(hx, hy + 10, 3.6, 38 * hojaScale);
+                }
+            });
+
+            // Dibujar cabezas de flores estilo leopardo
+            flores.forEach(flor => {
+                const progFlor = Math.min(1, Math.max(0, (progreso - flor.retraso - 0.25) * 2.2));
+                // Efecto elástico suave al abrir
+                const apertura = progFlor === 0 ? 0 : 1 - Math.pow(1 - progFlor, 3);
+                dibujarFlorLeopardo(flor, apertura, tiempo);
+            });
+
+            requestAnimationFrame(animar);
+        }
+
+        requestAnimationFrame(animar);
+    </script>
+</body>
+</html>
